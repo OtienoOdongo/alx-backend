@@ -6,6 +6,8 @@ import csv
 from typing import List, Tuple
 import math
 
+index_range = __import__('0-simple_helper_function').index_range
+
 
 class Server:
     DATA_FILE = "Popular_Baby_Names.csv"
@@ -73,14 +75,4 @@ class Server:
             "next_page": next_page,
             "prev_page": prev_page,
             "total_pages": total_pages
-        }
-
-
-def index_range(page: int, page_size: int) -> Tuple[int, int]:
-    """
-    Calculating the start and end indexes for the given page and page size
-    """
-    start_index = (page - 1) * page_size
-    end_index = page * page_size
-
-    return start_index, end_index
+            }
