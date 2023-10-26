@@ -4,20 +4,24 @@ MRU cache placement
 """
 
 
+from threading import RLock
+
 BaseCaching = __import__('base_caching').BaseCaching
 
 
-class MRUCache(BaseCaching):
+class CustomMRUCache(BaseCaching):
     """
-    Most Recently Used (MRU) caching system.
+    Custom implementation of Most Recently Used (MRU)
+    caching system.
     """
 
     def __init__(self):
         """
-        Initialize the MRU cache.
+        Initialize the custom MRU cache.
         """
-        super().__init()
-        self.recent_items = []
+        super().__init__()
+        self.__custom_keys = []
+        self.__custom_rlock = RLock()
 
     def put(self, key, item):
         """
@@ -27,15 +31,12 @@ class MRUCache(BaseCaching):
             key (str): The key to be used for caching.
             item: The value to be cached.
         """
-        if key and item:
-            if self.cache_data.get(key):
-                self.recent_items.remove(key)
-            while len(self.recent_items) >= self.MAX_ITEMS:
-                discarded_key = self.recent_items.pop()
-                self.cache_data.pop(discarded_key)
-                print(f'DISCARD: {discarded_key}')
-            self.recent_items.append(key)
-            self.cache_data[key] = item
+        if key is not None and item is not None:
+            key_out = self._balance(key)
+            with self.__custom_rlock:
+                self.cache_data.update({key: item})
+            if key_out is not None:
+                print(f'DISCARD: {key_out}')
 
     def get(self, key):
         """
@@ -43,13 +44,30 @@ class MRUCache(BaseCaching):
 
         Args:
             key (str):
-             The key to be used for retrieving the cached item.
+            The key to be used for retrieving the cached item.
 
         Returns:
             The cached item associated with the key,
             or None if the key is not found.
         """
-        if self.cache_data.get(key):
-            self.recent_items.remove(key)
-            self.recent_items.append(key)
-        return self.cache_data.get(key)
+        with self.__custom_rlock:
+            value = self.cache_data.get(key, None)
+            if key in self.__custom_keys:
+                self._balance(key)
+        return value
+
+    def _balance(self, key_in):
+        """
+        Perform the MRU balancing logic.
+        """
+        key_out = None
+        with self.__custom_rlock:
+            keys_length = len(self.__custom_keys)
+            if key_in not in self.__custom_keys:
+                if len(self.cache_data) == BaseCaching.MAX_ITEMS:
+                    key_out = self.__custom_keys.pop(keys_length - 1)
+                    self.cache_data.pop(key_out)
+            else:
+                self.__custom_keys.remove(key_in)
+            self.__custom_keys.insert(keys_length, key_in)
+        return key_out
